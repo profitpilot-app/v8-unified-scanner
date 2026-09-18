@@ -71,3 +71,10 @@ def signal(ticker:str):return latest.get(ticker.upper(),{"ticker":ticker.upper()
 def audit_history(ticker:str):return {"ticker":ticker.upper(),"alerts":audit.history(ticker)}
 @app.post("/audit/mover/{ticker}")
 def audit_mover(ticker:str,price:float,gain:float):return audit.audit_mover(ticker,price,gain)
+
+class SelfTestTick(BaseModel):
+ ticker:str="V8TEST"
+@app.post("/self-test")
+def self_test():
+ test={"ticker":"V8TEST","price":1.0,"daily_volume_usd":750000,"float_shares":2500000,"market_cap":25000000,"spread_pct":1.0,"rvol":6.0,"vol_1m":120000,"price_vector_1m":1.8,"near_breakout":True,"breakout_valid":True,"compression_break":True,"volatility_pct":3.0,"sec_text":"definitive agreement contract award","form_type":"","asymmetry_score":8,"halted":False,"timestamp":time.time()}
+ r=scanner.process_tick(test);return {"ok":r.get("trigger_price") is not None and r.get("state") in ("ENTRY ZONE","CONFIRMED"),"result":r,"feed_config":feed.get("config")}
