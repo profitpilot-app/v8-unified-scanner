@@ -5,8 +5,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from scanner import UnifiedScannerV8
 from events import SubMinuteEventEngine
+from audit import AlertAudit
 
-scanner=UnifiedScannerV8();event_engine=SubMinuteEventEngine();latest={};feed={"connected":False,"mode":"simulation","last_error":None,"last_event":None}
+scanner=UnifiedScannerV8();event_engine=SubMinuteEventEngine();audit=AlertAudit();latest={};feed={"connected":False,"mode":"simulation","last_error":None,"last_event":None}
 
 def reference(symbol,price,volume):
  return {"ticker":symbol,"price":price,"daily_volume_usd":price*volume,"float_shares":int(os.getenv("DEFAULT_FLOAT_SHARES","10000000")),"market_cap":0,"spread_pct":0,"rvol":1,"vol_1m":volume,"price_vector_1m":0,"near_breakout":False,"breakout_valid":False,"sec_text":"","form_type":"","timestamp":time.time()}
@@ -31,7 +32,7 @@ async def live_feed():
       elif typ=="b":
        p=float(x.get("c",0));v=float(x.get("v",0))
        if p<=0:continue
-       t=reference(sym,p,v);r=scanner.process_tick(t,feed["last_event"] if feed.get("last_event",{}).get("ticker")==sym else None);latest[sym]=r
+       t=reference(sym,p,v);r=scanner.process_tick(t,feed["last_event"] if feed.get("last_event",{}).get("ticker")==sym else None);latest[sym]=r;audit.record(r,"live_feed")
   except asyncio.CancelledError:raise
   except Exception as e:
    feed.update({"connected":False,"last_error":f"{type(e).__name__}: {e}"});await asyncio.sleep(delay);delay=min(delay*2,30)
@@ -52,8 +53,13 @@ def root():return {"name":"V8 Unified Scanner","version":"8.0.0","feed":feed,"si
 def health():return {"ok":True,"feed":feed,"symbols":len(scanner.mem)}
 @app.post("/tick")
 def tick(t:Tick):
- d=t.model_dump();d["timestamp"]=d["timestamp"] or time.time();r=scanner.process_tick(d);latest[t.ticker.upper()]=r;return r
+ d=t.model_dump();d["timestamp"]=d["timestamp"] or time.time();r=scanner.process_tick(d);latest[t.ticker.upper()]=r;audit.record(r,"manual_tick");return r
 @app.get("/signals")
 def signals():return sorted(latest.values(),key=lambda x:x.get("score",0),reverse=True)
 @app.get("/signal/{ticker}")
 def signal(ticker:str):return latest.get(ticker.upper(),{"ticker":ticker.upper(),"state":"UNKNOWN"})
+
+@app.get("/audit/{ticker}")
+def audit_history(ticker:str):return {"ticker":ticker.upper(),"alerts":audit.history(ticker)}
+@app.post("/audit/mover/{ticker}")
+def audit_mover(ticker:str,price:float,gain:float):return audit.audit_mover(ticker,price,gain)
