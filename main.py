@@ -7,13 +7,20 @@ from scanner import UnifiedScannerV8
 from events import SubMinuteEventEngine
 from audit import AlertAudit
 
-scanner=UnifiedScannerV8();event_engine=SubMinuteEventEngine();audit=AlertAudit();latest={};feed={"connected":False,"mode":"simulation","last_error":None,"last_event":None}
+scanner=UnifiedScannerV8();event_engine=SubMinuteEventEngine();audit=AlertAudit();latest={}
+def env_value(name,default=None):
+ v=os.getenv(name)
+ if v is None:return default
+ v=v.strip()
+ if len(v)>=2 and v[0]==v[-1] and v[0] in ("'",'"'):v=v[1:-1].strip()
+ return v or default
+feed={"connected":False,"mode":"simulation","last_error":None,"last_event":None,"config":{"enabled":False,"api_key_present":False,"api_secret_present":False,"stream_url_present":False}}
 
 def reference(symbol,price,volume):
  return {"ticker":symbol,"price":price,"daily_volume_usd":price*volume,"float_shares":int(os.getenv("DEFAULT_FLOAT_SHARES","10000000")),"market_cap":0,"spread_pct":0,"rvol":1,"vol_1m":volume,"price_vector_1m":0,"near_breakout":False,"breakout_valid":False,"sec_text":"","form_type":"","timestamp":time.time()}
 
 async def live_feed():
- url=os.getenv("ALPACA_STREAM_URL","wss://stream.data.alpaca.markets/v2/iex");key=os.getenv("ALPACA_API_KEY");secret=os.getenv("ALPACA_API_SECRET")
+ url=env_value("ALPACA_STREAM_URL","wss://stream.data.alpaca.markets/v2/iex");key=env_value("ALPACA_API_KEY");secret=env_value("ALPACA_API_SECRET");feed["config"].update({"api_key_present":bool(key),"api_secret_present":bool(secret),"stream_url_present":bool(url)})
  if not key or not secret:feed["last_error"]="Missing ALPACA_API_KEY/ALPACA_API_SECRET";return
  delay=2
  while True:
@@ -40,7 +47,8 @@ async def live_feed():
 @asynccontextmanager
 async def lifespan(app):
  task=None
- if os.getenv("LIVE_FEED_ENABLED","false").lower()=="true":task=asyncio.create_task(live_feed())
+ enabled=(env_value("LIVE_FEED_ENABLED","false") or "false").lower()=="true";feed["config"]["enabled"]=enabled
+ if enabled:task=asyncio.create_task(live_feed())
  yield
  if task:task.cancel()
 
