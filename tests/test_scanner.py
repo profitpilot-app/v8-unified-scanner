@@ -27,6 +27,10 @@ def test_sub_ten_cent_lane_is_scanned():
  r=UnifiedScannerV8().process_tick(p(price=.025,daily_volume_usd=250_000))
  assert r.get("reason")!="PRICE_FILTER"
 
+def test_sub_one_tenth_cent_lane_is_scanned():
+ r=UnifiedScannerV8().process_tick(p(price=.0005,daily_volume_usd=250_000))
+ assert r.get("reason")!="PRICE_FILTER"
+
 def test_recent_reverse_split_stays_armed_without_entry_signal():
  r=UnifiedScannerV8().process_tick(p(
   price=.20,daily_volume_usd=50_000,float_shares=800_000,post_split_shares=800_000,
