@@ -5,7 +5,7 @@ from typing import Optional
 
 
 CFG = {
-    "min_price": 0.001,
+    "min_price": 0.0,
     "max_price": 20.0,
     "min_dollar_volume": 25_000,
     "max_float": 15_000_000,
@@ -99,7 +99,7 @@ class UnifiedScannerV9:
         float_shares = int(t.get("float_shares") or structure["post_split_shares"])
         market_cap = float(t.get("market_cap", 0))
         spread = float(t.get("spread_pct", 0))
-        if not CFG["min_price"] <= price <= CFG["max_price"]:
+        if price <= CFG["min_price"] or price > CFG["max_price"]:
             return "PRICE_FILTER"
         if dollar_volume < CFG["min_dollar_volume"] and not structure["extreme_microfloat"]:
             return "LIQUIDITY_FILTER"
