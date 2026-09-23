@@ -35,17 +35,9 @@ def env_json(name, default):
 
 DEFAULT_SYMBOLS = ["JAGX", "GIPR", "TNMG", "IMCC", "SSM", "TCRT"]
 SYMBOLS = list(dict.fromkeys(s.strip().upper() for s in env_value("SCAN_SYMBOLS", ",".join(DEFAULT_SYMBOLS)).split(",") if s.strip()))[:30]
-REFERENCE = {
-    "JAGX": {
-        "float_shares": 520_088,
-        "post_split_shares": 520_088,
-        "reverse_split_sessions": 4,
-        "armed_continuation": True,
-        "benchmark_only": True,
-        "sec_text": "historical JAGX benchmark: reverse split; FDA fee waiver",
-    },
-    **env_json("SCANNER_REFERENCE_JSON", {}),
-}
+# Live structural reference data must be supplied and refreshed separately.
+# Historical benchmark values are intentionally kept out of current signals.
+REFERENCE = env_json("SCANNER_REFERENCE_JSON", {})
 
 scanner = UnifiedScannerV9()
 event_engine = SubMinuteEventEngine()
@@ -91,11 +83,14 @@ def make_tick(symbol, price=None):
     midpoint = (bid + ask) / 2 if bid and ask else price
     spread = ((ask - bid) / midpoint * 100) if bid and ask and midpoint else 0
     reference = REFERENCE.get(symbol, {})
+    raw_day_change = pct_change(price, prev_close)
+    corporate_action_unadjusted = abs(raw_day_change) > 500
     tick = {
         "ticker": symbol,
         "price": price,
         "previous_close": prev_close,
-        "day_change_pct": pct_change(price, prev_close),
+        "day_change_pct": 0 if corporate_action_unadjusted else raw_day_change,
+        "corporate_action_unadjusted": corporate_action_unadjusted,
         "daily_volume_usd": price * volume,
         "cumulative_volume": volume,
         "volume_today": volume,
