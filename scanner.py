@@ -6,7 +6,7 @@ from typing import Optional
 
 CFG = {
     "min_price": 0.0,
-    "max_price": 20.0,
+    "max_price": float("inf"),
     "min_dollar_volume": 25_000,
     "max_float": 15_000_000,
     "max_market_cap": 500_000_000,
@@ -99,7 +99,7 @@ class UnifiedScannerV9:
         float_shares = int(t.get("float_shares") or structure["post_split_shares"])
         market_cap = float(t.get("market_cap", 0))
         spread = float(t.get("spread_pct", 0))
-        if price <= CFG["min_price"] or price > CFG["max_price"]:
+        if price <= CFG["min_price"]:
             return "PRICE_FILTER"
         if dollar_volume < CFG["min_dollar_volume"] and not structure["extreme_microfloat"]:
             return "LIQUIDITY_FILTER"
@@ -197,7 +197,7 @@ class UnifiedScannerV9:
         rejected = self.hard_filter(t, structure)
         if rejected:
             memory.state = State.REJECTED
-            return {"ticker": symbol, "state": memory.state, "score": 0, "reason": rejected, "structure": structure}
+            return {"ticker": symbol, "state": memory.state, "score": 0, "price": float(t.get("price", 0)), "day_change_pct": float(t.get("day_change_pct", 0)), "reason": rejected, "structure": structure}
         score, components = self.score(t, event, structure)
         if score == 0 and components.get("risk"):
             memory.state = State.REJECTED
