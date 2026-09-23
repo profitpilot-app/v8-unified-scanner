@@ -260,6 +260,7 @@ class UnifiedScannerV9:
                 "price_vector_1m": float(t.get("price_vector_1m", 0)),
                 "price_vector_5m": float(t.get("price_vector_5m", 0)),
                 "daily_volume_usd": float(t.get("daily_volume_usd", 0)),
+                "corporate_action_unadjusted": bool(t.get("corporate_action_unadjusted", False)),
             },
         }
 
